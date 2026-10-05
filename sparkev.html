@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SparkEV — Global EV Performance Analytics</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  /* Layout concept: an EV's own instrument cluster, repurposed to read the
+     company's sales data — analog speedometer-style gauges, a digital
+     trip-meter readout, a mechanic's service log for the data-cleaning work,
+     a road-trip itinerary across three regions, a model-lineup spec sheet,
+     and a windshield inspection sticker for the grade. Navy is the portfolio
+     spine; dashboard amber is the one reserved accent, with green/red used
+     only as go/stop status, never decoration. */
+  :root{
+    --paper:#E9EEF8;
+    --surface:#FFFFFF;
+    --surface-2:#DEE6F5;
+    --ink:#10182B;
+    --ink-soft:#3D4A65;
+    --navy:#3050EA;
+    --navy-deep:#0B1130;
+    --gauge:#D97B0B;
+    --gauge-soft:#FBE7CC;
+    --go:#1E9E6B;
+    --stop:#C43D3D;
+    --muted:#57647F;
+    --line:#C7D1EA;
+    --shadow: 0 1px 2px rgba(16,24,43,0.07), 0 1px 0 rgba(16,24,43,0.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0A0E1A; --surface:#121A2B; --surface-2:#1A2438;
+      --ink:#E8ECFB; --ink-soft:#AEB8D2; --navy:#7C93FF; --navy-deep:#05070F;
+      --gauge:#FFB65C; --gauge-soft:#3A2A12; --go:#3FCB92; --stop:#F27171;
+      --muted:#8791AC; --line:#232D45;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0A0E1A; --surface:#121A2B; --surface-2:#1A2438;
+    --ink:#E8ECFB; --ink-soft:#AEB8D2; --navy:#7C93FF; --navy-deep:#05070F;
+    --gauge:#FFB65C; --gauge-soft:#3A2A12; --go:#3FCB92; --stop:#F27171;
+    --muted:#8791AC; --line:#232D45;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Public Sans', system-ui, sans-serif; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Archivo', system-ui, sans-serif; text-wrap:balance; margin:0; color:var(--ink); font-weight:700; letter-spacing:-0.01em;}
+  a{color:inherit;}
+  img{display:block; max-width:100%;}
+  .wrap{max-width:900px; margin:0 auto; padding-inline:24px;}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:0.72rem; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--navy); font-weight:500;
+  }
+  .btn{
+    font-family:'Public Sans', sans-serif; font-size:0.88rem; font-weight:500;
+    padding:11px 20px; border-radius:6px; text-decoration:none; display:inline-flex;
+    align-items:center; gap:8px; border:1px solid transparent; cursor:pointer;
+  }
+  .btn-primary{background:var(--navy); color:var(--surface);}
+  .btn-primary:hover{background:var(--navy-deep);}
+  .btn-outline{background:transparent; border-color:var(--line); color:var(--ink);}
+  .btn-outline:hover{border-color:var(--gauge); color:var(--gauge);}
+  .btn-ghost{background:transparent; border:1px dashed var(--line); color:var(--muted); cursor:default;}
+
+  section{padding:52px 0;}
+  section + section{border-top:1px solid var(--line);}
+  .section-head{margin-bottom:26px;}
+  .section-head h2{font-size:1.6rem; margin-top:6px;}
+  .tab-tag{
+    display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace;
+    font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gauge); font-weight:600;
+  }
+  .tab-tag::before{content:''; width:16px; height:1px; background:var(--gauge);}
+
+  /* Backbar */
+  .backbar{
+    border-bottom:1px solid var(--line); padding-block:16px;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:blur(8px); position:sticky; top:0; z-index:10;
+  }
+  .backbar a{ text-decoration:none; font-size:0.85rem; color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; }
+  .backbar a:hover{color:var(--gauge);}
+  .backbar svg{width:14px;height:14px;}
+
+  /* Hero — trip computer */
+  .trip-head{padding:48px 0 20px; position:relative;}
+  .trip-fields{
+    display:grid; grid-template-columns:auto 1fr; gap:6px 14px;
+    font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--ink-soft);
+    max-width:64ch; margin-top:16px;
+  }
+  .trip-fields dt{color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;}
+  .trip-fields dd{margin:0; color:var(--ink);}
+  .trip-head h1{font-size:clamp(2.1rem,5.2vw,3.1rem); line-height:1.06; margin-top:22px;}
+  .trip-head .sub{font-size:1.05rem; color:var(--ink-soft); margin-top:14px; max-width:60ch;}
+  .trip-ctas{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px;}
+  .ignition-badge{
+    position:absolute; top:48px; right:24px; display:flex; align-items:center; gap:8px;
+    background:var(--gauge-soft); border:1px solid color-mix(in srgb, var(--gauge) 45%, transparent);
+    color:var(--gauge); padding:8px 14px 8px 10px; border-radius:8px 8px 8px 2px;
+    font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em;
+    font-weight:600; transform:rotate(-2deg);
+  }
+  .ignition-badge svg{width:16px;height:16px;}
+  @media(max-width:640px){ .ignition-badge{display:none;} }
+
+  /* Instrument cluster */
+  .cluster{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:24px;}
+  @media(max-width:760px){ .cluster{grid-template-columns:1fr;} }
+  .gauge-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 14px 14px; box-shadow:var(--shadow); text-align:center;}
+  .gauge-card svg{width:100%; height:auto; max-width:200px; margin:0 auto;}
+  .gauge-card .g-label{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-top:10px;}
+  .gauge-card .g-note{font-size:0.8rem; color:var(--ink-soft); margin-top:6px;}
+  .chart-shot{
+    aspect-ratio:1297/793; background:var(--surface-2); border-radius:6px; overflow:hidden;
+    cursor:zoom-in; border:1px solid var(--line);
+  }
+  .chart-shot img{width:100%; height:100%; object-fit:cover; object-position:top;}
+  .src-tag{
+    display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:0.6rem;
+    text-transform:uppercase; letter-spacing:0.06em; color:var(--gauge); font-weight:600; margin-top:8px;
+  }
+  .src-tag svg{width:11px; height:11px;}
+  .lcd{
+    background:var(--navy-deep); border-radius:8px; padding:18px 14px; margin:0 auto;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:110px;
+  }
+  .lcd .lcd-label{font-family:'JetBrains Mono',monospace; font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase; color:rgba(231,236,251,0.5);}
+  .lcd .lcd-num{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:1.9rem; color:#5FE3B0; margin-top:6px; letter-spacing:0.02em;}
+
+  /* Service ticket */
+  .ticket{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; margin-top:24px;
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .ticket-strip{
+    background:repeating-linear-gradient(90deg, var(--line) 0 10px, transparent 10px 18px);
+    height:1px; margin:0;
+  }
+  .ticket-head{display:flex; justify-content:space-between; align-items:center; padding:16px 22px; background:var(--surface-2);}
+  .ticket-head .t-title{font-family:'Archivo',sans-serif; font-weight:700; font-size:1rem;}
+  .ticket-head .t-id{font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted);}
+  .ticket-list{list-style:none; margin:0; padding:18px 22px 22px; display:flex; flex-direction:column; gap:14px;}
+  .ticket-list li{display:flex; gap:12px; align-items:flex-start;}
+  .ticket-check{
+    width:20px; height:20px; border-radius:5px; background:var(--go); color:#fff; flex:none;
+    display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .ticket-check svg{width:12px; height:12px;}
+  .ticket-list .t-main{font-size:0.9rem; color:var(--ink);}
+  .ticket-list .t-sub{font-size:0.82rem; color:var(--ink-soft); margin-top:2px;}
+
+  /* Route */
+  .route{position:relative; margin-top:32px; padding-left:4px;}
+  .route::before{content:''; position:absolute; left:19px; top:6px; bottom:6px; width:2px; background:repeating-linear-gradient(180deg, var(--line) 0 8px, transparent 8px 14px);}
+  @media(min-width:760px){ .route{display:flex; gap:0; padding-left:0;} .route::before{left:0; right:0; top:19px; bottom:auto; height:2px; width:auto; background:repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 14px);} }
+  .stop{position:relative; padding:0 0 28px 46px;}
+  @media(min-width:760px){ .stop{flex:1; padding:46px 14px 0; text-align:center;} }
+  .stop-pin{
+    position:absolute; left:0; top:0; width:38px; height:38px; border-radius:50%;
+    background:var(--surface); border:2px solid var(--navy); color:var(--navy);
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+  }
+  @media(min-width:760px){ .stop-pin{left:50%; transform:translateX(-50%); top:0;} }
+  .stop-pin svg{width:18px;height:18px;}
+  .stop .s-region{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--navy); font-weight:600;}
+  .stop h3{font-size:1.05rem; margin-top:4px;}
+  .stop p{font-size:0.86rem; color:var(--ink-soft); margin-top:8px;}
+
+  /* Model lineup */
+  .lineup{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:24px;}
+  @media(max-width:700px){ .lineup{grid-template-columns:1fr;} }
+  .trim-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px; box-shadow:var(--shadow); position:relative;}
+  .trim-card .trim-badge{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:0.66rem; text-transform:uppercase;
+    letter-spacing:0.05em; padding:4px 10px; border-radius:20px; font-weight:600;
+  }
+  .trim-card.perf .trim-badge{background:var(--gauge-soft); color:var(--gauge);}
+  .trim-card.value .trim-badge{background:var(--surface-2); color:var(--navy);}
+  .trim-card h3{font-size:1.2rem; margin-top:10px;}
+  .spec-rows{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .spec-row{display:flex; justify-content:space-between; font-size:0.86rem; border-top:1px dashed var(--line); padding-top:8px;}
+  .spec-row:first-child{border-top:none; padding-top:0;}
+  .spec-row .k{color:var(--muted);}
+  .spec-row .v{font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--ink);}
+  .pit-note{margin-top:18px; font-style:italic; font-size:0.9rem; color:var(--ink-soft); max-width:66ch; padding-left:16px; border-left:2px solid var(--gauge);}
+  .pit-note b{color:var(--gauge); font-style:normal;}
+
+  /* Road ahead */
+  .road-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:24px;}
+  @media(max-width:700px){ .road-grid{grid-template-columns:1fr;} }
+  .road-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px; box-shadow:var(--shadow); display:flex; gap:16px; align-items:flex-start;}
+  .road-card svg{flex:none; width:44px; height:44px;}
+  .road-card h3{font-size:1.02rem;}
+  .road-card p{font-size:0.86rem; color:var(--ink-soft); margin-top:6px;}
+  .road-card.up{border-color:color-mix(in srgb, var(--go) 35%, var(--line));}
+  .road-card.down{border-color:color-mix(in srgb, var(--stop) 35%, var(--line));}
+
+  /* Financial trend — dashboard readout screen showing the real Tableau chart */
+  .trend-grid{margin-top:24px;}
+  .screen-card{background:var(--navy-deep); border-radius:14px; padding:16px; position:relative;}
+  .screen-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .screen-head .s-title{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:rgba(231,236,251,0.65);}
+  .screen-dot{width:7px; height:7px; border-radius:50%; background:var(--gauge); box-shadow:0 0 6px var(--gauge); flex:none;}
+  .screen-bezel{background:#fff; border-radius:8px; overflow:hidden; cursor:zoom-in; box-shadow:0 8px 24px rgba(0,0,0,0.35);}
+  .screen-bezel img{width:100%; height:auto; display:block;}
+  .screen-note{margin-top:12px; font-size:0.84rem; color:rgba(231,236,251,0.65);}
+  .screen-note b{color:var(--gauge); font-weight:600;}
+
+  /* Trim preference chart — real Tableau screenshot */
+  .trim-chart-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; box-shadow:var(--shadow); margin-top:24px;}
+  .trim-chart-card .shot-frame{border-radius:6px; overflow:hidden; cursor:zoom-in; border:1px solid var(--line);}
+  .trim-chart-card .shot-frame img{width:100%; height:auto; display:block;}
+
+  /* Model lineup chart — real Tableau screenshot */
+  .lineup-chart{background:var(--surface-2); border-radius:10px; padding:16px; margin-bottom:18px;}
+  .lineup-chart .shot-frame{border-radius:6px; overflow:hidden; cursor:zoom-in; background:#fff; box-shadow:var(--shadow);}
+  .lineup-chart .shot-frame img{width:100%; height:auto; display:block;}
+
+  /* Forecast chart (road ahead) — real Tableau screenshot */
+  .forecast-shot{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; margin-top:24px; box-shadow:var(--shadow);}
+  .forecast-shot .shot-frame{border-radius:6px; overflow:hidden; cursor:zoom-in;}
+  .forecast-shot .shot-frame img{width:100%; height:auto; display:block;}
+
+  /* Appendix gallery */
+  .appendix-wrap{background:var(--surface-2);}
+  .appendix-note{font-size:0.86rem; color:var(--ink-soft); max-width:62ch; margin-top:-10px; margin-bottom:14px;}
+
+  /* Inspection sticker */
+  .inspect-wrap{background:var(--navy-deep); color:#E7ECFB; --accent-on-dark:#FFC978;}
+  .inspect{padding:56px 0; display:grid; grid-template-columns:auto 1fr; gap:34px; align-items:center;}
+  @media(max-width:680px){ .inspect{grid-template-columns:1fr; text-align:center;} .inspect .sticker{margin:0 auto;} }
+  .sticker{
+    width:132px; height:132px; flex:none; border-radius:16px; position:relative;
+    background:color-mix(in srgb, var(--accent-on-dark) 14%, transparent);
+    border:2px solid var(--accent-on-dark); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform:rotate(-3deg);
+  }
+  .sticker .pass{font-family:'Archivo',sans-serif; font-weight:800; font-size:1rem; color:var(--accent-on-dark); letter-spacing:0.03em;}
+  .sticker .score{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:1.3rem; color:#F1F4FE; margin-top:6px;}
+  .sticker .unit{font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:rgba(231,236,251,0.5); text-transform:uppercase; margin-top:2px;}
+  .inspect-eyebrow{color:var(--accent-on-dark); margin:0;}
+  .inspect h2{color:#F1F4FE; font-size:clamp(1.3rem,3.2vw,1.8rem); margin-top:8px; max-width:34ch;}
+  .inspect .i-sub{font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:rgba(231,236,251,0.55); margin-top:8px;}
+  .inspect-reflect{margin-top:18px; font-style:italic; font-size:0.92rem; color:rgba(231,236,251,0.68); max-width:56ch;}
+
+  /* Footer */
+  footer.contact{background:var(--navy-deep); color:#E7ECFB; padding:48px 0; --accent-on-dark:#2FDBCE;}
+  footer.contact .eyebrow{color:var(--accent-on-dark);}
+  footer.contact h2{color:#F1F4FE; font-size:clamp(1.4rem,3.5vw,1.9rem); margin-top:8px; max-width:22ch;}
+  .contact-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:24px;}
+  .contact-row .btn-primary{background:var(--accent-on-dark); color:#04211D;}
+  .contact-row .btn-primary:hover{background:color-mix(in srgb, var(--accent-on-dark) 82%, black 18%);}
+  .contact-row .btn-outline{border-color:rgba(231,236,251,0.28); color:#E7ECFB;}
+  .contact-row .btn-outline:hover{border-color:var(--accent-on-dark); color:var(--accent-on-dark);}
+  .contact-row .btn-ghost{border-color:rgba(231,236,251,0.2); color:rgba(231,236,251,0.45);}
+
+  /* Dashboard gallery (secondary evidence strip) */
+  .gauge-shots{display:flex; gap:16px; overflow-x:auto; margin-top:24px; padding-bottom:6px;}
+  .gauge-shot{flex:none; width:260px; background:var(--surface); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow);}
+  .gauge-shot .shot-img{aspect-ratio:4/3; background:var(--surface-2); cursor:zoom-in; overflow:hidden;}
+  .gauge-shot .shot-img img{width:100%; height:100%; object-fit:contain;}
+  .gauge-shot figcaption{padding:10px 12px 12px; font-size:0.78rem; color:var(--ink-soft);}
+  .gauge-shot figcaption strong{display:block; font-size:0.86rem; color:var(--ink); font-family:'Archivo',sans-serif; margin-bottom:2px;}
+
+  /* Lightbox */
+  .lightbox{
+    position:fixed; inset:0; background:rgba(15,21,26,0.88); z-index:200;
+    display:none; align-items:center; justify-content:center; padding:32px; cursor:zoom-out;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 24px 64px rgba(0,0,0,0.45);}
+  .lightbox-close{
+    position:fixed; top:20px; right:24px; width:40px; height:40px; border-radius:50%;
+    background:rgba(231,236,251,0.12); border:1px solid rgba(231,236,251,0.3); color:#E7ECFB;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .lightbox-close svg{width:18px; height:18px;}
+</style>
+</head>
+<body>
+
+
+<div class="backbar">
+  <div class="wrap">
+    <a href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to portfolio
+    </a>
+  </div>
+</div>
+
+<header class="trip-head wrap">
+  <p class="eyebrow">Trip Computer · INF20016 Big Data Management, Swinburne</p>
+  <dl class="trip-fields">
+    <dt>Vehicle</dt><dd>SparkEV — fictional EV manufacturer, global fleet data</dd>
+    <dt>Route</dt><dd>2019–2023 · Asia, Europe, North America</dd>
+    <dt>Driver</dt><dd>Trung Kien Le, Case Study Analysis (Group)</dd>
+    <dt>Odometer</dt><dd>19 Tableau dashboards built from one cleaned dataset</dd>
+  </dl>
+  <h1>Test-Driving SparkEV's Global Sales Data</h1>
+  <p class="sub">Four years of sales records, three continents, and a dataset with duplicate VINs and broken formulas under the hood. My job on this Big Data Management case study was to clean it, then read the dashboard for where SparkEV should drive next.</p>
+  <div class="trip-ctas">
+    <a class="btn btn-outline" href="assets/docs/sparkev-report.pdf" target="_blank" rel="noopener">Download Full Report (PDF) ↗</a>
+    <a class="btn btn-outline" href="#gauges">Check the gauges ↓</a>
+  </div>
+  <div class="ignition-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-8z"/></svg>
+    Ready to drive
+  </div>
+</header>
+
+<section class="wrap" id="gauges">
+  <div class="section-head">
+    <span class="tab-tag">Instrument cluster</span>
+    <h2>What the dashboard reads at a glance</h2>
+  </div>
+  <div class="cluster">
+    <div class="gauge-card">
+      <div class="chart-shot"><img src="assets/img/crop-regional-markets.png" alt="Tableau chart: Top and bottom performing countries per region, showing the USA at $45,228,369.54 in gross sales, far ahead of every other market" onclick="openLightbox(this.src)"></div>
+      <div class="g-label">Regional markets</div>
+      <div class="g-note">The USA towers over every other market on the board — SparkEV's home turf, and its most crowded one.</div>
+      <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook</span>
+    </div>
+
+    <div class="gauge-card">
+      <div class="chart-shot"><img src="assets/img/crop-days-on-lot.png" alt="Tableau chart: Average days on lot by model, ranging from Stormz at 58.23 days to Romeno at 46.48 days" onclick="openLightbox(this.src)"></div>
+      <div class="g-label">Avg. days on lot</div>
+      <div class="g-note">55 days fleet-wide — Romeno moves in 46, Stormz sits for 58.</div>
+      <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook</span>
+    </div>
+
+    <div class="gauge-card">
+      <div class="chart-shot"><img src="assets/img/crop-tariff-map.png" alt="Tableau map: Top country with the highest tariff for each region, showing the USA at a 2.30 percent rate and the Netherlands at 2.10 percent" onclick="openLightbox(this.src)"></div>
+      <div class="g-label">Import tariffs</div>
+      <div class="g-note">Indonesia's tariff sat at 13.5% until a March 2022 cut took it to 0% — the map shows the far cheaper USA and Netherlands rates for comparison.</div>
+      <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook</span>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">Financial trend</span>
+    <h2>Reading the trip graph</h2>
+  </div>
+  <div class="trend-grid">
+    <div class="screen-card">
+      <div class="screen-head">
+        <span class="s-title">Tableau workbook · Financial Analytics</span>
+        <span class="screen-dot" aria-hidden="true"></span>
+      </div>
+      <div class="screen-bezel"><img src="assets/img/crop-revenue-trend.png" alt="Tableau chart: Total quarterly gross sales versus net revenue by all regions, from 2019 Q3 to 2023 Q3, peaking around $10.5 million in gross sales before declining" onclick="openLightbox(this.src)"></div>
+      <p class="screen-note">Quarterly gross sales (bars) peaked near <b>$10.5M</b> in 2021, while net revenue (line) stayed thin throughout — the gap between the two is what the forecast section tries to explain.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">Service log</span>
+    <h2>What we fixed before the drive</h2>
+  </div>
+  <div class="ticket">
+    <div class="ticket-head">
+      <span class="t-title">Data Prep Ticket</span>
+      <span class="t-id">TABLEAU PREP · JOB #SPRKEV-01</span>
+    </div>
+    <div class="ticket-strip"></div>
+    <ul class="ticket-list">
+      <li>
+        <span class="ticket-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t-main">Removed 4 duplicate VIN rows</div><div class="t-sub">Same vehicle recorded twice under two VINs — a classic big-data accuracy issue</div></div>
+      </li>
+      <li>
+        <span class="ticket-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t-main">Split Transmission into two fields</div><div class="t-sub">Separated into Transmission – Speed and Transmission – Auto/Manual for cleaner analysis</div></div>
+      </li>
+      <li>
+        <span class="ticket-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t-main">Standardised country names</div><div class="t-sub">"United States" → "USA", "UK" → "United Kingdom", corrected "Philippines" spelling</div></div>
+      </li>
+      <li>
+        <span class="ticket-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t-main">Recalculated five financial fields</div><div class="t-sub">Net Sales, Contribution Margin, Tariff, Net Revenue and After-tax Profit rebuilt from their source formulas</div></div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">The route</span>
+    <h2>Three regions, three different roads</h2>
+  </div>
+  <div class="route">
+    <div class="stop">
+      <div class="stop-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+      <div class="s-region">Stop 1 — North America</div>
+      <h3>The home turf, already crowded</h3>
+      <p>The USA alone brings in $45M+ in gross sales, led by fleet buyers. But it's a saturated lane, sharing the road with Tesla, Chevrolet and Ford.</p>
+    </div>
+    <div class="stop">
+      <div class="stop-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+      <div class="s-region">Stop 2 — Europe</div>
+      <h3>A slow lane with room to move</h3>
+      <p>The Netherlands leads, Denmark trails at just $3.8M — EVs are still under 3% of total car sales here. Plenty of open road, if the incentives hold.</p>
+    </div>
+    <div class="stop">
+      <div class="stop-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+      <div class="s-region">Stop 3 — Asia</div>
+      <h3>The on-ramp just opened</h3>
+      <p>Indonesia rivals Europe's top market, and its EV tariff just dropped to zero. China, the world's biggest EV market, is still untouched by SparkEV.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">Trim preferences</span>
+    <h2>What "trim" means changes by country</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:62ch; font-size:0.94rem;">Filtered to Europe, the workbook breaks trim choice down by country — Denmark and France lean toward opposite ends of the range, while the Netherlands' Base trim alone outsells every trim in Denmark.</p>
+  <div class="trim-chart-card">
+    <div class="shot-frame"><img src="assets/img/crop-trim-europe.png" alt="Tableau chart: Favorite trim by country in Europe, showing Denmark favouring Special Edition at 40 units, France favouring Base at 44 units, Germany fairly even across trims, and the Netherlands' Base trim leading at 50 units" onclick="openLightbox(this.src)"></div>
+    <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook · Operational Analytics (Europe view)</span>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">Model lineup</span>
+    <h2>Two trims, two very different drives</h2>
+  </div>
+  <div class="lineup-chart">
+    <div class="shot-frame"><img src="assets/img/crop-model-financials.png" alt="Tableau chart: Average gross sale versus average after-tax profit by model, with Tempest leading at $15,332.50 average after-tax profit and Centro trailing at $2,098.68" onclick="openLightbox(this.src)"></div>
+    <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook · Financial Analytics</span>
+  </div>
+  <div class="lineup">
+    <div class="trim-card perf">
+      <span class="trim-badge">Performance trim</span>
+      <h3>Tempest</h3>
+      <div class="spec-rows">
+        <div class="spec-row"><span class="k">Avg. gross sale</span><span class="v">$53,343</span></div>
+        <div class="spec-row"><span class="k">Avg. after-tax profit</span><span class="v">$15,333</span></div>
+        <div class="spec-row"><span class="k">Units sold</span><span class="v">208</span></div>
+        <div class="spec-row"><span class="k">Positioning</span><span class="v">Premium, high-margin</span></div>
+      </div>
+    </div>
+    <div class="trim-card value">
+      <span class="trim-badge">Value trim</span>
+      <h3>Centro</h3>
+      <div class="spec-rows">
+        <div class="spec-row"><span class="k">Avg. gross sale</span><span class="v">$18,808</span></div>
+        <div class="spec-row"><span class="k">Units sold</span><span class="v">1,164</span></div>
+        <div class="spec-row"><span class="k">NA profit (variable cost 56%+)</span><span class="v">$19.09M</span></div>
+        <div class="spec-row"><span class="k">Positioning</span><span class="v">Accessible, volume play</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="pit-note"><b>Pit-stop note —</b> Centro spends 17.6% of revenue on marketing in North America to move that volume. Stormz gets similar results in Asia — $10.77M in revenue — on under 10%. Same fleet, very different fuel economy.</p>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="tab-tag">The road ahead</span>
+    <h2>An 8-quarter forecast into 2025</h2>
+  </div>
+  <div class="forecast-shot">
+    <div class="shot-frame"><img src="assets/img/crop-forecast-gross-sales.png" alt="Tableau chart: Gross sales forecast for the next eight quarters in all regions, with confidence bands, showing Asia and Europe on a gentler trend than North America's steeper swings" onclick="openLightbox(this.src)"></div>
+    <span class="src-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Tableau workbook · Forecast Analytics</span>
+  </div>
+  <div class="road-grid">
+    <div class="road-card down">
+      <svg viewBox="0 0 44 44" fill="none"><path d="M6 14 L38 32" stroke="var(--stop)" stroke-width="3" stroke-linecap="round"/><path d="M38 32 L26 32 M38 32 L38 20" stroke="var(--stop)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h3>North America — downhill</h3>
+        <p>The region that got SparkEV here is forecast to lose sales and margin into 2025 as the market saturates and battery-supply costs bite.</p>
+      </div>
+    </div>
+    <div class="road-card up">
+      <svg viewBox="0 0 44 44" fill="none"><path d="M6 32 L38 12" stroke="var(--go)" stroke-width="3" stroke-linecap="round"/><path d="M38 12 L26 12 M38 12 L38 24" stroke="var(--go)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h3>Europe — uphill, but climbing</h3>
+        <p>From $0.85M in gross sales in 2019 toward a forecast $2M+ by early 2023, backed by incentives and fast-growing charging infrastructure.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="inspect-wrap">
+  <div class="wrap inspect">
+    <div class="sticker">
+      <span class="pass">PASS</span>
+      <span class="score">36.4 / 40</span>
+      <span class="unit">Case Study Analysis</span>
+    </div>
+    <div>
+      <p class="eyebrow inspect-eyebrow">Inspection result</p>
+      <h2>91% on the Case Study Analysis</h2>
+      <p class="i-sub">Case Study Analysis (Group) · 40% of unit</p>
+      <p class="inspect-reflect">The tariff gauge is my favourite finding in the whole report — a single policy change in March 2022 turned Indonesia from a high-friction market into an open road, and you can see it happen in one chart.</p>
+    </div>
+  </div>
+</div>
+
+<section class="wrap appendix-wrap">
+  <div class="section-head">
+    <span class="tab-tag">Appendix</span>
+    <h2>The full Tableau workbook</h2>
+  </div>
+  <p class="appendix-note">Every chart above was built from these four dashboards — 19 sheets in total across Overall Performance, Financial, Operational and Forecast Analytics, all driven by the one cleaned dataset from the service log.</p>
+  <div class="gauge-shots">
+    <figure class="gauge-shot">
+      <div class="shot-img"><img src="assets/img/01-overall-dashboard.png" alt="Overall Performance dashboard showing regional gross sales, top and bottom countries, tariffs, and sales channel mix" onclick="openLightbox(this.src)"></div>
+      <figcaption><strong>Overall Performance</strong>Regional sales, tariffs and channel mix across all three regions.</figcaption>
+    </figure>
+    <figure class="gauge-shot">
+      <div class="shot-img"><img src="assets/img/02-financial-dashboard.png" alt="Financial Analytics dashboard showing net sales and revenue growth, top countries by revenue, and model-level gross sales versus after-tax profit" onclick="openLightbox(this.src)"></div>
+      <figcaption><strong>Financial Analytics</strong>Net sales trend 2019–2023 and model-level profit.</figcaption>
+    </figure>
+    <figure class="gauge-shot">
+      <div class="shot-img"><img src="assets/img/03-operational-dashboard.png" alt="Operational Analytics dashboard showing model sales ranking, inventory holding period, trim preferences by country, and marketing cost versus gross sales" onclick="openLightbox(this.src)"></div>
+      <figcaption><strong>Operational Analytics</strong>Model ranking, days on lot, trim preference by country.</figcaption>
+    </figure>
+    <figure class="gauge-shot">
+      <div class="shot-img"><img src="assets/img/04-forecast-dashboard.png" alt="Forecast Analytics dashboard projecting after-tax profit, contribution margin and gross sales by region for the next eight quarters" onclick="openLightbox(this.src)"></div>
+      <figcaption><strong>Forecast Analytics</strong>8-quarter projection by region into 2025.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer class="contact">
+  <div class="wrap">
+    <p class="eyebrow">Interested in the full report?</p>
+    <h2>Happy to walk through the analysis.</h2>
+    <div class="contact-row">
+      <a class="btn btn-primary" href="https://www.linkedin.com/in/trung-kien-le-338619281/" target="_blank" rel="noopener">LinkedIn ↗</a>
+      <a class="btn btn-outline" href="assets/docs/sparkev-report.pdf" target="_blank" rel="noopener">Download Report (PDF) ↗</a>
+      <a class="btn btn-outline" href="index.html">← Back to portfolio</a>
+    </div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" aria-label="Close" onclick="closeLightbox()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  </button>
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<script>
+  function openLightbox(src){
+    var lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = src;
+    lb.classList.add('open');
+  }
+  function closeLightbox(){
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+
+</body>
+</html>

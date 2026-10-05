@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGC — Business Process Redesign</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  /* Layout concept: an engineering blueprint. Grid-paper backdrop, dimension-line
+     callouts, numbered revision marks. Navy/clay brand spine carries over; the one
+     new accent is a drafting-blue ("tech"), used only for annotations, revision
+     tags and the blueprint grid — never reused from the other three pages. */
+  :root{
+    --paper:#EEF1F9;
+    --surface:#FFFFFF;
+    --surface-2:#DEE6F5;
+    --ink:#10182B;
+    --ink-soft:#3D4A65;
+    --navy:#3050EA;
+    --navy-deep:#0B1130;
+    --tech:#1C7ED6;
+    --tech-soft:#DCEEFC;
+    --muted:#57647F;
+    --line:#C7D1EA;
+    --shadow: 0 1px 2px rgba(16,24,43,0.07), 0 1px 0 rgba(16,24,43,0.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0A0E1A; --surface:#121A2B; --surface-2:#1A2438;
+      --ink:#E8ECFB; --ink-soft:#AEB8D2; --navy:#7C93FF; --navy-deep:#05070F;
+      --tech:#5EC8FF; --tech-soft:#132A3A; --muted:#8791AC; --line:#232D45;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0A0E1A; --surface:#121A2B; --surface-2:#1A2438;
+    --ink:#E8ECFB; --ink-soft:#AEB8D2; --navy:#7C93FF; --navy-deep:#05070F;
+    --tech:#5EC8FF; --tech-soft:#132A3A; --muted:#8791AC; --line:#232D45;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Public Sans', system-ui, sans-serif; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Archivo', system-ui, sans-serif; text-wrap:balance; margin:0; color:var(--ink); font-weight:700; letter-spacing:-0.01em;}
+  a{color:inherit;}
+  img{display:block; max-width:100%;}
+  .wrap{max-width:920px; margin:0 auto; padding-inline:24px;}
+  .mono{font-family:'JetBrains Mono', monospace;}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:0.72rem; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--navy); font-weight:500;
+  }
+  .btn{
+    font-family:'Public Sans', sans-serif; font-size:0.88rem; font-weight:500;
+    padding:11px 20px; border-radius:6px; text-decoration:none; display:inline-flex;
+    align-items:center; gap:8px; border:1px solid transparent; cursor:pointer;
+  }
+  .btn-primary{background:var(--navy); color:var(--surface);}
+  .btn-primary:hover{background:var(--navy-deep);}
+  .btn-outline{background:transparent; border-color:var(--line); color:var(--ink);}
+  .btn-outline:hover{border-color:var(--tech); color:var(--tech);}
+  .btn-ghost{background:transparent; border:1px dashed var(--line); color:var(--muted); cursor:default;}
+
+  section{padding:52px 0;}
+  section + section{border-top:1px solid var(--line);}
+  .section-head{margin-bottom:26px;}
+  .section-head h2{font-size:1.6rem; margin-top:6px;}
+
+  /* Backbar */
+  .backbar{
+    border-bottom:1px solid var(--line); padding-block:16px;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:blur(8px); position:sticky; top:0; z-index:10;
+  }
+  .backbar a{ text-decoration:none; font-size:0.85rem; color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px; }
+  .backbar a:hover{color:var(--tech);}
+  .backbar svg{width:14px;height:14px;}
+
+  /* Blueprint hero */
+  .blueprint-hero{
+    position:relative; overflow:hidden;
+    background:
+      linear-gradient(var(--navy-deep), var(--navy-deep)),
+      repeating-linear-gradient(0deg, color-mix(in srgb, var(--tech) 22%, transparent) 0, color-mix(in srgb, var(--tech) 22%, transparent) 1px, transparent 1px, transparent 32px),
+      repeating-linear-gradient(90deg, color-mix(in srgb, var(--tech) 22%, transparent) 0, color-mix(in srgb, var(--tech) 22%, transparent) 1px, transparent 1px, transparent 32px);
+    color:#E7ECFB;
+  }
+  .blueprint-hero .wrap{padding:56px 24px 48px; position:relative;}
+  .revtag{
+    display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace;
+    font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--tech);
+    border:1px solid color-mix(in srgb, var(--tech) 50%, transparent); border-radius:20px;
+    padding:4px 12px; background:rgba(94,200,255,0.08);
+  }
+  .blueprint-hero h1{color:#F1F4FE; font-size:clamp(2rem,5.2vw,3.1rem); line-height:1.08; margin-top:18px; max-width:18ch;}
+  .blueprint-hero .sub{font-size:1.05rem; color:rgba(231,236,251,0.72); margin-top:16px; max-width:62ch;}
+  .hero-ctas{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px;}
+  .hero-ctas .btn-outline{border-color:rgba(231,236,251,0.28); color:#E7ECFB;}
+  .hero-ctas .btn-outline:hover{border-color:var(--tech); color:var(--tech);}
+  .hero-ctas .btn-ghost{border-color:rgba(231,236,251,0.2); color:rgba(231,236,251,0.45);}
+  .hero-stats{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin-top:40px;
+    background:rgba(231,236,251,0.14); border:1px solid rgba(231,236,251,0.14); border-radius:10px; overflow:hidden;
+  }
+  @media(max-width:640px){ .hero-stats{grid-template-columns:1fr;} }
+  .hero-stat{background:rgba(11,17,48,0.5); padding:18px 20px;}
+  .hero-stat .v{font-family:'Archivo',sans-serif; font-weight:800; font-size:1.5rem; color:var(--tech);}
+  .hero-stat .l{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em; color:rgba(231,236,251,0.55); margin-top:4px;}
+
+  /* Exhibit tag (shared language w/ other case pages, same visual grammar) */
+  .exhibit-tag{
+    display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace;
+    font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--tech); font-weight:600;
+  }
+  .exhibit-tag::before{content:''; width:16px; height:1px; background:var(--tech);}
+
+  /* Issue cards */
+  .issue-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-top:24px;}
+  @media(max-width:720px){ .issue-grid{grid-template-columns:1fr;} }
+  .issue-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px 22px 20px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .issue-card .num{
+    font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--tech); font-weight:700;
+    letter-spacing:0.04em;
+  }
+  .issue-card h3{font-size:1.02rem; margin-top:8px;}
+  .issue-card p{font-size:0.88rem; color:var(--ink-soft); margin:10px 0 0;}
+
+  /* Blueprint figure frame — the real BPMN exports */
+  .bp-figure{
+    margin-top:28px; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    background:var(--surface); box-shadow:var(--shadow);
+  }
+  .bp-figure .bp-shot{
+    background:#fff; cursor:zoom-in; overflow:hidden; border-bottom:1px solid var(--line);
+  }
+  .bp-figure .bp-shot img{width:100%; display:block;}
+  .bp-figure figcaption{
+    padding:12px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .bp-figure .cap-label{font-size:0.85rem; color:var(--ink-soft);}
+  .bp-figure .cap-tag{
+    font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--tech); background:var(--tech-soft);
+    border-radius:20px; padding:4px 10px; white-space:nowrap;
+  }
+
+  /* Swimlane legend chips */
+  .lane-legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;}
+  .lane-chip{
+    font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--ink-soft);
+    background:var(--surface-2); border:1px solid var(--line); border-radius:20px; padding:5px 11px;
+  }
+
+  /* Toolkit pillars (best practices) */
+  .toolkit-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; margin-top:24px; background:var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow);}
+  @media(max-width:860px){ .toolkit-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:520px){ .toolkit-grid{grid-template-columns:1fr;} }
+  .toolkit-card{background:var(--surface); padding:22px 18px;}
+  .toolkit-card .letter{
+    width:30px; height:30px; border-radius:7px; background:var(--tech-soft); color:var(--tech);
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.85rem;
+  }
+  .toolkit-card h3{font-size:0.92rem; margin-top:12px; line-height:1.3;}
+  .toolkit-card p{font-size:0.8rem; color:var(--ink-soft); margin:8px 0 0;}
+
+  /* Devil's quadrangle (recreated inline, not a data chart — framework diagram) */
+  .quad-wrap{display:grid; grid-template-columns:220px 1fr; gap:28px; align-items:center; margin-top:24px;}
+  @media(max-width:640px){ .quad-wrap{grid-template-columns:1fr;} }
+  .quad-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; box-shadow:var(--shadow);}
+  .quad-note{font-size:0.9rem; color:var(--ink-soft);}
+  .quad-note b{color:var(--ink);}
+
+  /* Methodology row */
+  .method-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+  @media(max-width:720px){ .method-row{grid-template-columns:1fr;} }
+  .method-card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px; box-shadow:var(--shadow);}
+  .method-card h3{font-size:1rem;}
+  .method-card p{font-size:0.88rem; color:var(--ink-soft); margin-top:8px;}
+  .phase-row{display:flex; gap:10px; margin-top:24px; flex-wrap:wrap;}
+  .phase{
+    flex:1; min-width:140px; background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:16px 16px; box-shadow:var(--shadow); position:relative;
+  }
+  .phase .pn{font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--tech); font-weight:700;}
+  .phase h4{font-size:0.86rem; margin-top:6px; font-family:'Public Sans',sans-serif; font-weight:600;}
+  .phase p{font-size:0.78rem; color:var(--muted); margin:6px 0 0;}
+
+  /* Verdict */
+  .verdict-wrap{background:var(--navy-deep); color:#E7ECFB;}
+  .verdict{padding:56px 0;}
+  .verdict-top{display:grid; grid-template-columns:auto 1fr; gap:28px; align-items:center;}
+  @media(max-width:680px){ .verdict-top{grid-template-columns:1fr; text-align:center;} }
+  .seal{
+    width:112px; height:112px; border-radius:50%; flex:none; position:relative;
+    background:radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--tech) 45%, transparent), transparent 70%),
+               color-mix(in srgb, var(--tech) 14%, transparent);
+    border:2px solid var(--tech); display:flex; align-items:center; justify-content:center;
+    font-family:'Archivo',sans-serif; font-weight:800; font-size:1.5rem; color:var(--tech);
+  }
+  @media(max-width:680px){ .seal{margin:0 auto;} }
+  .verdict-eyebrow{color:var(--tech); margin:0;}
+  .verdict h2{color:#F1F4FE; font-size:clamp(1.3rem,3.2vw,1.8rem); margin-top:8px; max-width:34ch;}
+  .rubric-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:30px;}
+  @media(max-width:760px){ .rubric-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:460px){ .rubric-grid{grid-template-columns:1fr;} }
+  .rubric-stat{background:rgba(231,236,251,0.05); border:1px solid rgba(231,236,251,0.14); border-radius:10px; padding:16px 16px;}
+  .rubric-stat .v{font-family:'Archivo',sans-serif; font-weight:800; font-size:1.35rem; color:var(--tech);}
+  .rubric-stat .l{font-size:0.78rem; color:rgba(231,236,251,0.6); margin-top:4px;}
+  .verdict-quote{
+    margin-top:24px; font-style:italic; font-size:0.92rem; color:rgba(231,236,251,0.68); max-width:66ch;
+    padding-left:16px; border-left:2px solid var(--tech);
+  }
+
+  /* Lightbox */
+  .lightbox{
+    position:fixed; inset:0; background:rgba(15,21,26,0.9); z-index:200;
+    display:none; align-items:center; justify-content:center; padding:24px; cursor:zoom-out;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 24px 64px rgba(0,0,0,0.45);}
+  .lightbox-close{
+    position:fixed; top:20px; right:24px; width:40px; height:40px; border-radius:50%;
+    background:rgba(231,236,251,0.12); border:1px solid rgba(231,236,251,0.3); color:#E7ECFB;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .lightbox-close svg{width:18px; height:18px;}
+
+  /* Footer */
+  footer.contact{background:var(--navy-deep); color:#E7ECFB; padding:48px 0;}
+  footer.contact .eyebrow{color:#2FDBCE;}
+  footer.contact h2{color:#F1F4FE; font-size:clamp(1.4rem,3.5vw,1.9rem); margin-top:8px; max-width:24ch;}
+  .contact-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:24px;}
+  .contact-row .btn-primary{background:#2FDBCE; color:#04211D;}
+  .contact-row .btn-primary:hover{background:color-mix(in srgb, #2FDBCE 82%, black 18%);}
+  .contact-row .btn-outline{border-color:rgba(231,236,251,0.28); color:#E7ECFB;}
+  .contact-row .btn-outline:hover{border-color:#2FDBCE; color:#2FDBCE;}
+  .contact-row .btn-ghost{border-color:rgba(231,236,251,0.2); color:rgba(231,236,251,0.45);}
+</style>
+</head>
+<body>
+
+
+<div class="backbar">
+  <div class="wrap">
+    <a href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to portfolio
+    </a>
+  </div>
+</div>
+
+<header class="blueprint-hero">
+  <div class="wrap">
+    <span class="revtag">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      INF30035 · Business Process Analysis, Swinburne
+    </span>
+    <h1>Redrawing how SGC assigns a coach.</h1>
+    <p class="sub">SGC runs a referral-based coaching service, but every assignment — from first inquiry to final payment — moved through a receptionist's inbox by hand. Our team modelled the current process end-to-end, diagnosed where it broke down, and redesigned it into a leaner, partly-automated workflow — captured at Level 2 BPMN, AS-IS to TO-BE to BPMS automation.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-outline" href="#as-is">See the AS-IS model ↓</a>
+      <a class="btn btn-outline" href="#to-be">Jump to TO-BE ↓</a>
+      <a class="btn btn-outline" href="assets/docs/sgc-report.pdf" target="_blank" rel="noopener">Download Full Report (PDF) ↗</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="v">5</div><div class="l">AS-IS + TO-BE sub-processes modelled</div></div>
+      <div class="hero-stat"><div class="v">5</div><div class="l">BPM best practices applied</div></div>
+      <div class="hero-stat"><div class="v">80%</div><div class="l">target coach-utilisation rate</div></div>
+    </div>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="exhibit-tag">The business</span>
+    <h2>Five people, one shared inbox, every assignment by hand</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">SGC matches clients with coaches through a referral network — new clients mostly arrive through "Emily," a referral partner whose clients get a discount. From there, a receptionist manually verifies the client, a coaching specialist locates and confirms an available coach, a client relations officer schedules the session, and a bookkeeper chases the invoice afterwards. Four different roles touch a single assignment before a dollar changes hands.</p>
+  <p style="color:var(--ink-soft); max-width:68ch; margin-top:14px;">The bottleneck sits right in the middle: matching a client's requirements against a coach's skills, expertise and availability — then re-verifying that match every time a client's preferences shift or a coach's schedule changes. That back-and-forth is what the rest of this case study is about fixing.</p>
+</section>
+
+<section class="wrap" id="as-is">
+  <div class="section-head">
+    <span class="exhibit-tag">Exhibit A · Diagnosis</span>
+    <h2>The AS-IS model — where the process actually breaks</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">Expanded from our Level 1 model in Assignment 1, this Level 2 BPMN diagram traces the full "Handle Coaching Assignment" process across five swimlanes — Emily, Client, Receptionist, Coaching Specialist, Client Relations Officer and Bookkeeper — from the moment a referral lands to the moment an assignment is marked complete.</p>
+
+  <div class="bp-figure">
+    <div class="bp-shot"><img src="assets/img/as-is-main.png" alt="AS-IS Level 2 BPMN diagram of SGC's Handle Coaching Assignment main process, showing five swimlanes: Emily, Client, Receptionist, Coaching Specialist, Client Relations Officer and Bookkeeper" onclick="openLightbox(this.src)"></div>
+    <figcaption>
+      <span class="cap-label">Appendix D · [AS-IS] Handle Coaching Assignment — Main Process</span>
+      <span class="cap-tag">Level 2 BPMN · bpmn.io</span>
+    </figcaption>
+  </div>
+  <div class="lane-legend">
+    <span class="lane-chip">Handle Inquiry</span>
+    <span class="lane-chip">Locate Coach</span>
+    <span class="lane-chip">Schedule Assignment</span>
+    <span class="lane-chip">Handle Feedback</span>
+    <span class="lane-chip">Handle Payment</span>
+  </div>
+
+  <div class="issue-grid">
+    <div class="issue-card">
+      <div class="num">ISSUE 01</div>
+      <h3>Process delays from manual intervention</h3>
+      <p>Client inquiries, coach assignment and payment all run through manual verification and form-processing — the exact tasks automation is best at.</p>
+    </div>
+    <div class="issue-card">
+      <div class="num">ISSUE 02</div>
+      <h3>Communication &amp; workflow inefficiencies</h3>
+      <p>No automated reminders for coach payments or client invoices. Fragmented back-and-forth between staff, clients and coaches delays every follow-up.</p>
+    </div>
+    <div class="issue-card">
+      <div class="num">ISSUE 03</div>
+      <h3>Resource wastage</h3>
+      <p>Coaches sit underutilised while clients wait to be matched — scheduling gaps that directly work against SGC's 80% utilisation target.</p>
+    </div>
+    <div class="issue-card">
+      <div class="num">ISSUE 04</div>
+      <h3>Duplication of effort &amp; role overlap</h3>
+      <p>With no centralised database, staff re-enter the same client and coach details across tools — introducing errors and blurring who owns what.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="exhibit-tag">Exhibit B · The redesign toolkit</span>
+    <h2>Five best practices, mapped to the four issues above</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">Selected using the Devil's Quadrangle to weigh quality, flexibility, time and cost against SGC's priorities — quality and flexibility lead, since client satisfaction is what the coaching business actually sells.</p>
+
+  <div class="toolkit-grid">
+    <div class="toolkit-card">
+      <div class="letter">A</div>
+      <h3>Contact Reduction</h3>
+      <p>One centralised inquiry form replaces manual back-and-forth for client details.</p>
+    </div>
+    <div class="toolkit-card">
+      <div class="letter">B</div>
+      <h3>Split Responsibilities</h3>
+      <p>Clear, non-overlapping roles so staff stop duplicating each other's work.</p>
+    </div>
+    <div class="toolkit-card">
+      <div class="letter">C</div>
+      <h3>Re-sequencing</h3>
+      <p>A 20% deposit moves before session confirmation, cutting bad debt and no-shows.</p>
+    </div>
+    <div class="toolkit-card">
+      <div class="letter">D</div>
+      <h3>Knockout</h3>
+      <p>Blacklisted clients and unresponsive coaches are filtered out early, before they cost staff time.</p>
+    </div>
+    <div class="toolkit-card">
+      <div class="letter">E</div>
+      <h3>Resource Centralisation</h3>
+      <p>One database for every coach profile, specialty and availability window, visible in real time.</p>
+    </div>
+  </div>
+
+  <div class="quad-wrap">
+    <div class="quad-card">
+      <svg viewBox="0 0 260 260" width="100%" role="img" aria-label="Devil's Quadrangle radar chart: SGC prioritises Quality highest, then Flexibility, with Cost and Time weighted lower">
+        <g fill="none" stroke="var(--line)" stroke-width="1">
+          <circle cx="130" cy="130" r="85"/>
+          <circle cx="130" cy="130" r="57"/>
+          <circle cx="130" cy="130" r="29"/>
+        </g>
+        <g stroke="var(--line)" stroke-width="1">
+          <line x1="130" y1="45" x2="130" y2="215"/>
+          <line x1="45" y1="130" x2="215" y2="130"/>
+        </g>
+        <polygon points="130,58 192,130 130,175 68,130" fill="color-mix(in srgb, var(--tech) 30%, transparent)" stroke="var(--tech)" stroke-width="2.5" stroke-linejoin="round"/>
+        <text x="130" y="24" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="13" fill="var(--ink)">Flexibility</text>
+        <text x="228" y="134" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="13" fill="var(--ink)">Quality</text>
+        <text x="130" y="248" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="13" fill="var(--ink)">Cost</text>
+        <text x="32" y="134" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="13" fill="var(--ink)">Time</text>
+      </svg>
+    </div>
+    <p class="quad-note"><b>Why quality and flexibility win —</b> SGC competes on service quality in a relationship-driven coaching market. Time and cost still matter, but every best practice above was chosen to protect client experience first, and tightened our operations second.</p>
+  </div>
+</section>
+
+<section class="wrap" id="to-be">
+  <div class="section-head">
+    <span class="exhibit-tag">Exhibit C · The redesign</span>
+    <h2>The TO-BE model — a self-service front door, a database spine</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">The TO-BE model keeps SGC's existing team structure but replaces manual intake with an online inquiry form, folds coach information into one shared database, and re-sequences payment so a 20% deposit confirms the booking before anyone's calendar is blocked.</p>
+
+  <div class="bp-figure">
+    <div class="bp-shot"><img src="assets/img/to-be-main.png" alt="TO-BE Level 2 BPMN diagram of SGC's Handle Coaching Assignment main process, showing the SGC Website, Client, Receptionist, Bookkeeper and Coach swimlanes with the new Create Assignment, Handle Agreement, Handle Payment and Perform Fortnightly Task sub-processes" onclick="openLightbox(this.src)"></div>
+    <figcaption>
+      <span class="cap-label">Appendix J · [TO-BE] Handle Coaching Assignment — Main Process</span>
+      <span class="cap-tag">Level 2 BPMN · bpmn.io</span>
+    </figcaption>
+  </div>
+  <div class="lane-legend">
+    <span class="lane-chip">Create Assignment</span>
+    <span class="lane-chip">Handle Agreement</span>
+    <span class="lane-chip">Handle Payment</span>
+    <span class="lane-chip">Perform Fortnightly Task</span>
+  </div>
+
+  <div class="method-row" style="margin-top:28px;">
+    <div class="method-card">
+      <h3>What actually changed</h3>
+      <p>Client intake moves to the SGC website inquiry form. A 20% deposit now sits before "Assignment Commerce," not after. A new "Perform Fortnightly Task" loop keeps the database current instead of relying on ad-hoc updates.</p>
+    </div>
+    <div class="method-card">
+      <h3>What we kept deliberately</h3>
+      <p>This followed a <i>tuning</i> approach, not a rebuild — the same roles (Receptionist, Bookkeeper, Coach) stay in place. We're removing manual steps, not restructuring who does the work, to keep staff resistance low.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="exhibit-tag">Exhibit D · Automation layer</span>
+    <h2>Handing the matching logic to a BPMS</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">The receptionist in the AS-IS model absorbed client intake, assignment drafting and coordination almost single-handedly — a workload that research links directly to burnout and slower response times. The automation model moves that load into a Business Process Management System that checks, drafts and matches without waiting on a person.</p>
+
+  <div class="bp-figure">
+    <div class="bp-shot"><img src="assets/img/automation-model.png" alt="BPMS automation model diagram showing the system checking client details, drafting assignments, querying suitable coaches, and auto-selecting a coach from the least-congested fixture" onclick="openLightbox(this.src)"></div>
+    <figcaption>
+      <span class="cap-label">Appendix O · Automation Model</span>
+      <span class="cap-tag">BPMS logic</span>
+    </figcaption>
+  </div>
+
+  <div class="method-row" style="margin-top:28px;">
+    <div class="method-card">
+      <h3>What the system does on its own</h3>
+      <p>Checks whether a client is new, existing or blacklisted; drafts the assignment; queries every suitable coach by requirement and availability; and auto-selects whoever has the least-congested schedule.</p>
+    </div>
+    <div class="method-card">
+      <h3>Where a human still steps in</h3>
+      <p>The coaching specialist only sees a case when it's genuinely ambiguous — an unclear requirement, a cancellation, or a coach declining the auto-match. Everything routine runs without them.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="section-head">
+    <span class="exhibit-tag">Framework &amp; rollout</span>
+    <h2>Lean Six Sigma, and a change plan staff won't fight</h2>
+  </div>
+  <p style="color:var(--ink-soft); max-width:68ch;">We used Lean Six Sigma to frame the diagnosis — Lean to strip out non-value-added steps like repeated manual verification, Six Sigma's DMAIC cycle to track down exactly where communication broke down and standardise the fix. The rollout itself follows a <b style="color:var(--ink);">tuning</b> change-management approach: incremental adjustments, not a structural overhaul, so SGC keeps serving clients while the new process beds in.</p>
+
+  <div class="phase-row">
+    <div class="phase"><div class="pn">PHASE 1</div><h4>Staff training</h4><p>Targeted at the 80% utilisation goal and the new database workflow.</p></div>
+    <div class="phase"><div class="pn">PHASE 2</div><h4>Phased implementation</h4><p>New tools introduced gradually alongside existing processes, not as a cutover.</p></div>
+    <div class="phase"><div class="pn">PHASE 3</div><h4>Monitoring &amp; evaluation</h4><p>Ongoing tracking against the utilisation target and client satisfaction signals.</p></div>
+  </div>
+</section>
+
+<div class="verdict-wrap">
+  <div class="wrap verdict">
+    <div class="verdict-top">
+      <div class="seal">84.5%</div>
+      <div>
+        <p class="eyebrow verdict-eyebrow">The verdict</p>
+        <h2>33.8 / 40 — Assignment 2, INF30035 Business Process Analysis</h2>
+        <p style="color:rgba(231,236,251,0.72); font-size:0.92rem; margin-top:10px; max-width:60ch;">Marked against a Level 2 BPMN rubric covering report content, AS-IS/TO-BE modelling quality, and the BPMS automation logic — the modelling components are where this group scored strongest.</p>
+      </div>
+    </div>
+    <div class="rubric-grid">
+      <div class="rubric-stat"><div class="v">90%</div><div class="l">Modelling AS-IS · 13.5/15</div></div>
+      <div class="rubric-stat"><div class="v">80%</div><div class="l">Modelling TO-BE · 12/15</div></div>
+      <div class="rubric-stat"><div class="v">87%</div><div class="l">BPMS automation model · 8.7/10</div></div>
+      <div class="rubric-stat"><div class="v">80%</div><div class="l">Creativity &amp; sustainability · 4/5</div></div>
+    </div>
+    <p class="verdict-quote">"Models are well presented, include all details of current processes. Well used level 2 BPMN symbols." — grader feedback on the AS-IS model</p>
+  </div>
+</div>
+
+<footer class="contact">
+  <div class="wrap">
+    <p class="eyebrow">Interested in the full report?</p>
+    <h2>Happy to walk through the BPMN models.</h2>
+    <div class="contact-row">
+      <a class="btn btn-primary" href="https://www.linkedin.com/in/trung-kien-le-338619281/" target="_blank" rel="noopener">LinkedIn ↗</a>
+      <a class="btn btn-outline" href="assets/docs/sgc-report.pdf" target="_blank" rel="noopener">Download Report (PDF) ↗</a>
+      <a class="btn btn-outline" href="index.html">← Back to portfolio</a>
+    </div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" aria-label="Close" onclick="closeLightbox()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  </button>
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<script>
+  function openLightbox(src){
+    var lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = src;
+    lb.classList.add('open');
+  }
+  function closeLightbox(){
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+
+</body>
+</html>
